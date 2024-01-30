@@ -1,11 +1,23 @@
+const int RELAY_PIN = A5;
+
+void start_fan(){
+  digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);  // used for indication
+}
+
+void stop_fan(){
+  digitalWrite(RELAY_PIN, LOW); 
+  digitalWrite(LED_BUILTIN, LOW);
+}
+
 void setup() {
-  Serial.begin (115200);
-  while (!Serial);
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
 }
 
 void loop() {
-  if (Serial.available()) {
-    String inputString = Serial.readString();
-    Serial.println (inputString);
-  }
+  start_fan();
+  delay(5000);
+  stop_fan();
+  delay(5000);
 }
