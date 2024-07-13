@@ -1,30 +1,53 @@
-//#include <avr/iom328p.h> // for vscode to understand PWM timer registry setup
+//#include <avr/iom328p.h> // for vscode to understand PWM timer registry definitions
 
-#define RELAY_PIN PIN_A5 //ADC5, PC5, D19 on Arduino Uno R3
 #define RPM_PIN 2 //D2, PD2
 #define RPM_PULSES 2
+#define LED_PIN LED_BUILTIN
 
 const word PWM_FREQ_HZ = 25000; // Target freq for Noctua PWM control
 const word TCNT1_TOP = 16000000 / (2 * PWM_FREQ_HZ);
 const byte OC1A_PIN = 9;
 const byte OC1B_PIN = 10; // PWM OUTPUT
 
-int interruptCounter, rpm;
+int interruptCounter, rpm, currentPWM = 0;
 
 // -----------------------------------------------------------------------------
 // Main program setup
 // -----------------------------------------------------------------------------
 void setup() {
-  delay(200);
+  delay(200); // Precatuion if "serial causes sketch to run twice" should occur.
   Serial.begin(115200);
+  while (!Serial) {
+    ;  // wait for serial port to connect. Needed for native USB port only
+  }
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(RELAY_PIN, OUTPUT);
   pinMode(RPM_PIN, INPUT_PULLUP);
   setup_pwm();
-  start_fan();
   set_pwm(30);
-
   Serial.println("Setup complete.");
+}
+
+// -----------------------------------------------------------------------------
+// Main program loop
+// -----------------------------------------------------------------------------
+void loop() {
+  read_rpm();
+  Serial.print("RPM: "); Serial.print(rpm);
+  Serial.print(", Duty %: "); Serial.println(currentPWM);
+  
+  (rpm > 0) ? digitalWrite(LED_PIN, HIGH) : digitalWrite(LED_PIN, LOW);
+
+  if (Serial.available() > 0){
+    String inString = "";
+    int inChar = 0;
+    while (Serial.available() > 0){
+      int inChar = Serial.read();
+      if (isDigit(inChar)){
+        inString += (char)inChar;
+      }
+    }
+    set_pwm(inString.toInt());
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -57,26 +80,14 @@ void setup_pwm(){
 }
 
 // -----------------------------------------------------------------------------
-// Main program loop
-// -----------------------------------------------------------------------------
-void loop() {
-  read_rpm();
-  Serial.println(rpm);
-}
-
-// -----------------------------------------------------------------------------
 // Sets the specific duty cycle (%) on the PWM pin
 // -----------------------------------------------------------------------------
 void set_pwm(int duty){
+  duty = duty<0 ? 0 : duty>100 ? 100 : duty; // c++ ternary conditional operator
 	float f = (float) duty / 100;
-  f = f<0 ? 0 : f>1 ? 1 : f; // c++ ternary conditional operator
   OCR1B = (uint16_t) (TCNT1_TOP * f);
+  currentPWM = duty;
 }
-
-//Alternate method of setting PWM, but take 0-255 as value
-// void set_pwm(int duty){
-// 	analogWrite(OC1B_PIN, duty);
-// }
 
 // -----------------------------------------------------------------------------
 // Reads and calculates the current fan RPM. 
@@ -102,20 +113,4 @@ int read_rpm() {
 // -----------------------------------------------------------------------------
 void rpm_countup() {
   interruptCounter++;
-}
-
-// -----------------------------------------------------------------------------
-// Starts the fan by closing the relay
-// -----------------------------------------------------------------------------
-void start_fan(){
-  digitalWrite(RELAY_PIN, HIGH);
-  digitalWrite(LED_BUILTIN, HIGH);  // used for indication
-}
-
-// -----------------------------------------------------------------------------
-// Stops the fan by opening the relay
-// -----------------------------------------------------------------------------
-void stop_fan(){
-  digitalWrite(RELAY_PIN, LOW); 
-  digitalWrite(LED_BUILTIN, LOW);
 }
