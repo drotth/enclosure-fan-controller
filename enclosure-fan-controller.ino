@@ -25,7 +25,7 @@ int stateCLK_last;
 int stateSW;
 
 // Serial
-bool sendStatus = true;
+bool sendStatus = false;
 unsigned long lastSerialMillis = 0;
 int txDelay = 500;
 
